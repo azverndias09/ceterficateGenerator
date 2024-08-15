@@ -1,7 +1,10 @@
+# main.py
+
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from PIL import Image, ImageDraw, ImageFont, ImageTk
 import os
+from font_selector import FontSizeSelector
 
 class CertificateGenerator:
     def __init__(self, master):
@@ -14,15 +17,25 @@ class CertificateGenerator:
         self.template_image = None
         self.font_dict = self.load_fonts()
         self.selected_font = tk.StringVar()
-        self.selected_font.set("Select Font")
-        self.font_size = tk.IntVar()
-        self.font_size.set(48)
         self.text_position = (0, 0)
         self.names = []
         self.preview_text = "John Doe"
 
+        # Snap threshold in pixels
+        self.snap_threshold = 20
+
+        # Track the offset between the cursor and text position
+        self.drag_offset_x = 0
+        self.drag_offset_y = 0
+
         # Setup UI
         self.setup_ui()
+
+        # Set default font
+        default_font = "Arial"  # Change this to whatever default font you prefer
+        if default_font in self.font_dict:
+            self.selected_font.set(default_font)
+        self.update_preview()
 
     def load_fonts(self):
         font_dir = "C:/Windows/Fonts"
@@ -45,20 +58,23 @@ class CertificateGenerator:
         # Font selection
         font_frame = tk.Frame(self.master)
         font_frame.pack(pady=10)
+        
+        # Select Font dropdown
         tk.Label(font_frame, text="Select Font: ").pack(side=tk.LEFT)
         font_menu = tk.OptionMenu(font_frame, self.selected_font, *self.font_dict.keys(), command=lambda _: self.update_preview())
         font_menu.pack(side=tk.LEFT, padx=5)
-        tk.Label(font_frame, text="Font Size: ").pack(side=tk.LEFT, padx=20)
-        tk.Entry(font_frame, textvariable=self.font_size, width=5).pack(side=tk.LEFT)
-        tk.Button(font_frame, text="Update Preview", command=self.update_preview).pack(side=tk.LEFT, padx=10)
-
+        
+        # Font Size Selector (auto-update on size change)
+        self.font_size_selector = FontSizeSelector(font_frame, initial_size=48, update_callback=self.update_preview)
+        self.font_size_selector.pack(side=tk.LEFT, padx=20)
+        
         # Names input
         names_frame = tk.Frame(self.master)
         names_frame.pack(pady=10)
         tk.Label(names_frame, text="Enter Names (comma-separated): ").pack(side=tk.LEFT)
         self.names_entry = tk.Entry(names_frame, width=50)
         self.names_entry.pack(side=tk.LEFT, padx=5)
-
+        
         # Placeholder for canvas dimensions
         self.canvas_width = 800
         self.canvas_height = 500
@@ -66,8 +82,9 @@ class CertificateGenerator:
         self.canvas.pack(pady=10)
         self.canvas_text = None
         self.canvas.bind("<B1-Motion>", self.move_text)
+        self.canvas.bind("<ButtonPress-1>", self.start_drag)
         self.canvas.bind("<ButtonRelease-1>", self.set_text_position)
-
+        
         # Generate button
         tk.Button(self.master, text="Generate Certificates", command=self.generate_certificates).pack(pady=10)
 
@@ -113,33 +130,67 @@ class CertificateGenerator:
         draw = ImageDraw.Draw(self.preview_image)
         try:
             font_path = self.font_dict[self.selected_font.get()]
-            font = ImageFont.truetype(font_path, self.font_size.get())
+            font_size = self.font_size_selector.font_size.get()  # Get the font size from the selector
+            font = ImageFont.truetype(font_path, font_size)
         except Exception as e:
             messagebox.showerror("Font Error", f"Error loading font: {e}")
             return
 
-        # Using textbbox to get text dimensions
+        # Calculate text dimensions
         text_bbox = draw.textbbox((0, 0), self.preview_text, font=font)
         text_width, text_height = text_bbox[2] - text_bbox[0], text_bbox[3] - text_bbox[1]
 
-        if self.text_position == (0, 0):
-            position = ((self.canvas_width - text_width) // 2, (self.canvas_height - text_height) // 2)
-            self.text_position = position
-        else:
-            position = self.text_position
-        draw.text(position, self.preview_text, font=font, fill="black")
+        # Center the text horizontally and position it vertically based on user input
+        position_x = (self.canvas_width - text_width) // 2
+        position_y = self.text_position[1]
+
+        # Update position
+        self.text_position = (position_x, position_y)
+
+        # Draw text
+        draw.text(self.text_position, self.preview_text, font=font, fill="black")
         self.tk_image = ImageTk.PhotoImage(self.preview_image)
         self.canvas.create_image(0, 0, anchor=tk.NW, image=self.tk_image)
+
+    def start_drag(self, event):
+        # Calculate offset when drag starts
+        draw = ImageDraw.Draw(self.preview_image)
+        font_path = self.font_dict[self.selected_font.get()]
+        font = ImageFont.truetype(font_path, self.font_size_selector.font_size.get())
+        text_bbox = draw.textbbox((0, 0), self.preview_text, font=font)
+        text_width, text_height = text_bbox[2] - text_bbox[0], text_bbox[3] - text_bbox[1]
+
+        # Calculate offsets from the cursor to the center of the text
+        self.drag_offset_x = event.x - (self.text_position[0] + text_width // 2)
+        self.drag_offset_y = event.y - (self.text_position[1] + text_height // 2)
 
     def move_text(self, event):
         if not self.template_image:
             return
-        self.text_position = (event.x, event.y)
+        # Calculate the center positions
+        center_x = self.canvas_width // 2
+        center_y = self.canvas_height // 2
+
+        # Get text width for accurate centering
+        draw = ImageDraw.Draw(self.preview_image)
+        font_path = self.font_dict[self.selected_font.get()]
+        font = ImageFont.truetype(font_path, self.font_size_selector.font_size.get())
+        text_bbox = draw.textbbox((0, 0), self.preview_text, font=font)
+        text_width = text_bbox[2] - text_bbox[0]
+
+        # Adjust position based on drag offset
+        adjusted_x = event.x - self.drag_offset_x - text_width // 2
+        adjusted_y = event.y - self.drag_offset_y
+
+        # Snap to center if within threshold
+        snap_x = adjusted_x if abs(adjusted_x + text_width // 2 - center_x) > self.snap_threshold else center_x - text_width // 2
+        snap_y = adjusted_y if abs(adjusted_y - center_y) > self.snap_threshold else center_y
+
+        self.text_position = (snap_x, snap_y)
         self.update_preview()
 
     def set_text_position(self, event):
-        self.text_position = (event.x, event.y)
-        self.update_preview()
+        self.move_text(event)
 
     def generate_certificates(self):
         names_input = self.names_entry.get()
@@ -159,23 +210,22 @@ class CertificateGenerator:
             draw = ImageDraw.Draw(cert_image)
             try:
                 font_path = self.font_dict[self.selected_font.get()]
-                # Scale the font size relative to the template size
-                scaled_font_size = int(self.font_size.get() * (self.template_image.width / self.canvas_width))
-                font = ImageFont.truetype(font_path, scaled_font_size)
+                font_size = int(self.font_size_selector.font_size.get() * (self.template_image.width / self.canvas_width))
+                font = ImageFont.truetype(font_path, font_size)
             except Exception as e:
                 messagebox.showerror("Font Error", f"Error loading font: {e}")
                 return
 
-            # Using textbbox to get text dimensions
+            # Calculate text dimensions for each name
             text_bbox = draw.textbbox((0, 0), name, font=font)
             text_width, text_height = text_bbox[2] - text_bbox[0], text_bbox[3] - text_bbox[1]
 
-            # Calculate position relative to original image size
-            position = (
-                int(self.text_position[0] * (self.template_image.width / self.canvas_width)),
-                int(self.text_position[1] * (self.template_image.height / self.canvas_height))
-            )
-            draw.text(position, name, font=font, fill="black")
+            # Center the text horizontally and adjust the vertical position
+            position_x = (self.template_image.width - text_width) // 2
+            position_y = int(self.text_position[1] * (self.template_image.height / self.canvas_height))
+
+            # Draw text
+            draw.text((position_x, position_y), name, font=font, fill="black")
             output_path = os.path.join(output_dir, f"certificate_{name}.pdf")
             cert_image.save(output_path, "PDF", resolution=100.0)
 
