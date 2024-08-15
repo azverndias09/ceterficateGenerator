@@ -7,7 +7,7 @@ class CertificateGenerator:
     def __init__(self, master):
         self.master = master
         self.master.title("Certificate Generator")
-        self.master.geometry("1000x700")
+        self.master.geometry("1000x800")
         self.master.resizable(False, False)
 
         # Initialize variables
@@ -59,9 +59,9 @@ class CertificateGenerator:
         self.names_entry = tk.Entry(names_frame, width=50)
         self.names_entry.pack(side=tk.LEFT, padx=5)
 
-        # Preview canvas (initial dimensions)
-        self.canvas_width = 800  # Initial width for the canvas
-        self.canvas_height = 500  # Initial height for the canvas
+        # Placeholder for canvas dimensions
+        self.canvas_width = 800
+        self.canvas_height = 500
         self.canvas = tk.Canvas(self.master, width=self.canvas_width, height=self.canvas_height, bg="grey")
         self.canvas.pack(pady=10)
         self.canvas_text = None
@@ -83,13 +83,16 @@ class CertificateGenerator:
         template_width, template_height = self.template_image.size
         aspect_ratio = template_width / template_height
 
-        # Scale the canvas size while maintaining the aspect ratio
+        # Define maximum dimensions for the canvas
+        max_canvas_width = 800
+        max_canvas_height = 500
+
         if aspect_ratio >= 1:  # Wide image
-            self.canvas_width = 800
-            self.canvas_height = int(800 / aspect_ratio)
+            self.canvas_width = max_canvas_width
+            self.canvas_height = int(self.canvas_width / aspect_ratio)
         else:  # Tall image
-            self.canvas_height = 500
-            self.canvas_width = int(500 * aspect_ratio)
+            self.canvas_height = max_canvas_height
+            self.canvas_width = int(self.canvas_height * aspect_ratio)
 
         self.canvas.config(width=self.canvas_width, height=self.canvas_height)
 
@@ -97,7 +100,7 @@ class CertificateGenerator:
         if not self.template_image:
             return
         self.preview_image = self.template_image.copy()
-        self.preview_image.thumbnail((self.canvas_width, self.canvas_height), Image.Resampling.LANCZOS)
+        self.preview_image = self.preview_image.resize((self.canvas_width, self.canvas_height), Image.Resampling.LANCZOS)
         self.tk_image = ImageTk.PhotoImage(self.preview_image)
         self.canvas.create_image(0, 0, anchor=tk.NW, image=self.tk_image)
         self.update_preview()
@@ -106,7 +109,7 @@ class CertificateGenerator:
         if not self.template_image or self.selected_font.get() == "Select Font":
             return
         self.preview_image = self.template_image.copy()
-        self.preview_image.thumbnail((self.canvas_width, self.canvas_height), Image.Resampling.LANCZOS)
+        self.preview_image = self.preview_image.resize((self.canvas_width, self.canvas_height), Image.Resampling.LANCZOS)
         draw = ImageDraw.Draw(self.preview_image)
         try:
             font_path = self.font_dict[self.selected_font.get()]
@@ -115,12 +118,12 @@ class CertificateGenerator:
             messagebox.showerror("Font Error", f"Error loading font: {e}")
             return
 
-        # Using textbbox instead of textsize
+        # Using textbbox to get text dimensions
         text_bbox = draw.textbbox((0, 0), self.preview_text, font=font)
         text_width, text_height = text_bbox[2] - text_bbox[0], text_bbox[3] - text_bbox[1]
 
         if self.text_position == (0, 0):
-            position = ((self.preview_image.width - text_width) // 2, (self.preview_image.height - text_height) // 2)
+            position = ((self.canvas_width - text_width) // 2, (self.canvas_height - text_height) // 2)
             self.text_position = position
         else:
             position = self.text_position
@@ -163,7 +166,7 @@ class CertificateGenerator:
                 messagebox.showerror("Font Error", f"Error loading font: {e}")
                 return
 
-            # Using textbbox instead of textsize
+            # Using textbbox to get text dimensions
             text_bbox = draw.textbbox((0, 0), name, font=font)
             text_width, text_height = text_bbox[2] - text_bbox[0], text_bbox[3] - text_bbox[1]
 
