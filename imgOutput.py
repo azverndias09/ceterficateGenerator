@@ -8,14 +8,14 @@ class CertificateApp:
         self.root = root
         self.root.title("Certificate Generator")
 
-        # Set window size to a more manageable size
+        # Small window cuz glitch ( don't ask me how this fixes it, it just works)
         self.root.geometry("800x600")
 
         # Load certificate template
         self.template_path = filedialog.askopenfilename(title="Select Certificate Template", filetypes=[("PNG Files", "*.png"), ("JPEG Files", "*.jpg")])
         self.template_image = Image.open(self.template_path)
 
-        # Scale the certificate for preview purposes (let's scale it down to fit within a 700x400 area)
+        # Scale the certificate for preview purposes 700 X 400
         self.preview_scale_factor = min(700 / self.template_image.width, 400 / self.template_image.height)
         self.preview_image = self.template_image.resize(
             (int(self.template_image.width * self.preview_scale_factor), 
@@ -24,7 +24,7 @@ class CertificateApp:
         )
 
         self.font_name = tk.StringVar(value="Helvetica")
-        self.font_size = 48  # Use a standard integer for font size
+        self.font_size = 48  #standard font size
         self.preview_text = "Preview Name"
         self.text_position_y = 300  # Only y-coordinate; x will be centered
         self.locked_text_position_y = int(self.text_position_y * self.preview_scale_factor)

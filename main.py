@@ -203,13 +203,20 @@ class CertificateGenerator:
 
     def generate_certificates(self):
         names_input = self.names_entry.get()
+        
+        # Automatically replace newlines with commas and split names
+        names_input = names_input.replace("\n", ",")
+        
         if not names_input:
             messagebox.showerror("Input Error", "Please enter at least one name.")
             return
+        
         self.names = [name.strip() for name in names_input.split(',') if name.strip()]
+        
         if not self.names:
             messagebox.showerror("Input Error", "Please enter valid names.")
             return
+        
         output_dir = filedialog.askdirectory(title="Select Output Directory")
         if not output_dir:
             return
@@ -240,6 +247,7 @@ class CertificateGenerator:
             cert_image.save(output_path, "PDF", resolution=100.0)
 
         messagebox.showinfo("Success", "Certificates generated successfully!")
+
 
 if __name__ == "__main__":
     root = tk.Tk()
