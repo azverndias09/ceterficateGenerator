@@ -1,10 +1,9 @@
-# main.py
-
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, ttk
 from PIL import Image, ImageDraw, ImageFont, ImageTk
 import os
 from font_selector import FontSizeSelector
+from color_selector import FontColorSelector
 
 class CertificateGenerator:
     def __init__(self, master):
@@ -20,6 +19,7 @@ class CertificateGenerator:
         self.text_position = (0, 0)
         self.names = []
         self.preview_text = "John Doe"
+        self.text_color = "#000000"  # Default color is black
 
         # Snap threshold in pixels
         self.snap_threshold = 20
@@ -59,14 +59,22 @@ class CertificateGenerator:
         font_frame = tk.Frame(self.master)
         font_frame.pack(pady=10)
         
-        # Select Font dropdown
+        # Font Selection with Scrollable Combobox
         tk.Label(font_frame, text="Select Font: ").pack(side=tk.LEFT)
-        font_menu = tk.OptionMenu(font_frame, self.selected_font, *self.font_dict.keys(), command=lambda _: self.update_preview())
-        font_menu.pack(side=tk.LEFT, padx=5)
-        
+        self.font_combobox = ttk.Combobox(font_frame, textvariable=self.selected_font, values=list(self.font_dict.keys()), width=30)
+        self.font_combobox.pack(side=tk.LEFT, padx=5)
+        self.font_combobox.bind("<<ComboboxSelected>>", lambda _: self.update_preview())
+
         # Font Size Selector (auto-update on size change)
         self.font_size_selector = FontSizeSelector(font_frame, initial_size=48, update_callback=self.update_preview)
         self.font_size_selector.pack(side=tk.LEFT, padx=20)
+        
+        # Font Color Selector
+        color_frame = tk.Frame(self.master)
+        color_frame.pack(pady=10)
+        tk.Label(color_frame, text="Select Font Color: ").pack(side=tk.LEFT)
+        self.font_color_selector = FontColorSelector(color_frame, initial_color=self.text_color, update_callback=self.update_preview)
+        self.font_color_selector.pack(side=tk.LEFT, padx=20)
         
         # Names input
         names_frame = tk.Frame(self.master)
@@ -132,6 +140,7 @@ class CertificateGenerator:
             font_path = self.font_dict[self.selected_font.get()]
             font_size = self.font_size_selector.font_size.get()  # Get the font size from the selector
             font = ImageFont.truetype(font_path, font_size)
+            text_color = self.font_color_selector.selected_color.get()  # Get the color from the color selector
         except Exception as e:
             messagebox.showerror("Font Error", f"Error loading font: {e}")
             return
@@ -148,7 +157,7 @@ class CertificateGenerator:
         self.text_position = (position_x, position_y)
 
         # Draw text
-        draw.text(self.text_position, self.preview_text, font=font, fill="black")
+        draw.text(self.text_position, self.preview_text, font=font, fill=text_color)
         self.tk_image = ImageTk.PhotoImage(self.preview_image)
         self.canvas.create_image(0, 0, anchor=tk.NW, image=self.tk_image)
 
@@ -212,6 +221,7 @@ class CertificateGenerator:
                 font_path = self.font_dict[self.selected_font.get()]
                 font_size = int(self.font_size_selector.font_size.get() * (self.template_image.width / self.canvas_width))
                 font = ImageFont.truetype(font_path, font_size)
+                text_color = self.font_color_selector.selected_color.get()
             except Exception as e:
                 messagebox.showerror("Font Error", f"Error loading font: {e}")
                 return
@@ -225,7 +235,7 @@ class CertificateGenerator:
             position_y = int(self.text_position[1] * (self.template_image.height / self.canvas_height))
 
             # Draw text
-            draw.text((position_x, position_y), name, font=font, fill="black")
+            draw.text((position_x, position_y), name, font=font, fill=text_color)
             output_path = os.path.join(output_dir, f"certificate_{name}.pdf")
             cert_image.save(output_path, "PDF", resolution=100.0)
 
