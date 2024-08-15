@@ -9,7 +9,7 @@ class CertificateGenerator:
     def __init__(self, master):
         self.master = master
         self.master.title("Certificate Generator")
-        self.master.geometry("1000x800")
+        self.master.geometry("1000x850")  # Increased height to 850
         self.master.resizable(False, False)
 
         # Initialize variables
@@ -82,7 +82,10 @@ class CertificateGenerator:
         tk.Label(names_frame, text="Enter Names (comma-separated): ").pack(side=tk.LEFT)
         self.names_entry = tk.Entry(names_frame, width=50)
         self.names_entry.pack(side=tk.LEFT, padx=5)
-        
+
+        # Generate button (moved to the top of the preview window)
+        tk.Button(self.master, text="Generate Certificates", command=self.generate_certificates).pack(pady=10)
+
         # Placeholder for canvas dimensions
         self.canvas_width = 800
         self.canvas_height = 500
@@ -92,9 +95,6 @@ class CertificateGenerator:
         self.canvas.bind("<B1-Motion>", self.move_text)
         self.canvas.bind("<ButtonPress-1>", self.start_drag)
         self.canvas.bind("<ButtonRelease-1>", self.set_text_position)
-        
-        # Generate button
-        tk.Button(self.master, text="Generate Certificates", command=self.generate_certificates).pack(pady=10)
 
     def load_template(self):
         template_path = filedialog.askopenfilename(title="Select Certificate Template", filetypes=[("Image Files", "*.png;*.jpg;*.jpeg;*.bmp;*.tiff")])
